@@ -78,8 +78,8 @@ function createAgent(proxy) {
 }
 
 const AI_ENDPOINTS = {
-    "https://deployment-uu9y1z4z85rapgwkss1muuiz.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_UU9y1Z4Z85RAPGwkss1mUUiZ",
+    "https://deployment-hp4y88pxnqxwlmpxllicjzzn.stag-vxzy.zettablock.com/main": {
+        "agent_id": "deployment_hp4y88pxnqxwlmpxllicjzzn",
         "name": "Kite AI Assistant",
         "questions": [
             "Tell me about the latest updates in Kite AI",
@@ -94,8 +94,8 @@ const AI_ENDPOINTS = {
             "How can I optimize my use of Kite AI?"
         ]
     },
-    "https://deployment-ecz5o55dh0dbqagkut47kzyc.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_ECz5O55dH0dBQaGKuT47kzYC",
+    "https://deployment-nc3y3k7zy6gekszmcsordhu7.stag-vxzy.zettablock.com/main": {
+        "agent_id": "deployment_nc3y3k7zy6gekszmcsordhu7",
         "name": "Crypto Price Assistant",
         "questions": [
             "What's the current market sentiment for Solana?",
@@ -415,7 +415,7 @@ async function main() {
     console.clear();
     
     // Display initial registration message
-    console.log(`${chalk.cyan('📝 Register First:')} ${chalk.green('https://testnet.gokite.ai?r=kxsQ3byj')}`);
+    console.log(`${chalk.cyan('📝 Register First:')} ${chalk.green('https://testnet.gokite.ai/?r=ExnFCPz9')}`);
     console.log(`${chalk.yellow('💡 Join our channel if you got any problem')}\n`);
     console.log(chalk.magenta('Press any key to continue...'));
     

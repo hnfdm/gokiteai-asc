@@ -1,12 +1,12 @@
-# Kite AI Auto-Bot
+## Kite AI Auto-Bot
 
 An automated interaction bot for Kite AI platform with multi-wallet and proxy support.
 
-## Register 
+### Register 
 
-- https://testnet.gokite.ai/?r=kxsQ3byj 
+- https://testnet.gokite.ai/?r=ExnFCPz9
 
-## 🌟 Features
+### 🌟 Features
 
 - Multiple wallet support (manual input or file-based)
 - Proxy support (HTTP/HTTPS/SOCKS)
@@ -16,25 +16,24 @@ An automated interaction bot for Kite AI platform with multi-wallet and proxy su
 - Usage reporting
 - Graceful error handling
 
-## 📋 Prerequisites
+### 📋 Prerequisites
 
 - Node.js (v16 or higher)
 - npm (Node Package Manager)
 
-## 🛠️ Installation
+### 🛠️ Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/airdropinsiders/KiteAi-Auto-Bot.git
-cd KiteAi-Auto-Bot
+git clone https://github.com/airdropinsiders/gokiteai-asc.git && cd gokiteai-asc
 ```
 
 2. Install dependencies:
 ```bash
-npm install
+npm i
 ```
 
-## 📝 Configuration
+### 📝 Configuration
 
 1. (Optional) Create a `proxies.txt` file for proxy support:
 ```
@@ -48,7 +47,7 @@ socks5://user:pass@host:port
 0xabcdef1234567890abcdef1234567890abcdef12
 ```
 
-## 🚀 Usage
+### 🚀 Usage
 
 Run the bot:
 ```bash
@@ -60,7 +59,7 @@ The bot will prompt you to:
 2. Choose wallet input mode (Manual/File)
 3. Enter wallet address (if manual mode)
 
-## ⚙️ Configuration Options
+### ⚙️ Configuration Options
 
 You can modify the following settings in `index.js`:
 
@@ -68,15 +67,10 @@ You can modify the following settings in `index.js`:
 - `agents`: Modify available AI agents
 - `intervalBetweenCycles`: Change delay between interaction cycles
 
-## 📢 Support
-
-Join our Telegram channel for updates and support:
-https://t.me/AirdropInsiderID
-
-## ⚠️ Disclaimer
+### ⚠️ Disclaimer
 
 This bot is for educational purposes only. Use at your own risk and ensure compliance with Kite AI's terms of service.
 
-## 📜 License
+### 📜 License
 
 MIT License - feel free to use and modify for your own purposes.
