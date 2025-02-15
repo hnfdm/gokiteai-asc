@@ -271,7 +271,8 @@ class KiteAIAutomation {
                 method: 'POST',
                 agent,
                 headers,
-                body: JSON.stringify(data)
+                body: JSON.stringify(data),
+                timeout: 30000 // 30 detik
             });
 
             const sessionPrefix = chalk.blue(`[Session ${this.session.sessionId}]`);
