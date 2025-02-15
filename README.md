@@ -25,7 +25,7 @@ An automated interaction bot for Kite AI platform with multi-wallet and proxy su
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/airdropinsiders/gokiteai-asc.git && cd gokiteai-asc
+git clone https://github.com/hnfdm/gokiteai-asc.git && cd gokiteai-asc
 ```
 
 2. Install dependencies:
