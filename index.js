@@ -393,9 +393,15 @@ class KiteAIAutomation {
                 // Display current statistics after each interaction
                 this.session.printStatistics();
 
-                const delay = Math.random() * (10 - 5) + 5;
-                this.logMessage('⏳', `Cooldown: ${delay.toFixed(1)} seconds...`, 'yellow');
-                await new Promise(resolve => setTimeout(resolve, delay * 1000));
+                 // Cooldown antara interaksi
+                const delay = Math.random() * (10 - 5) + 5; // Cooldown antara 5-10 detik
+                this.logMessage('⏳', `Cooldown: ${delay.toFixed(1)} detik...`, 'yellow');
+                await new Promise(resolve => setTimeout(resolve, delay * 1000));  // Delay sebelum melanjutkan ke interaksi berikutnya
+                
+                // Jeda antar sesi sebelum melanjutkan ke wallet berikutnya
+                const sessionDelay = Math.random() * (10 - 5) + 5; // Jeda antara 5-10 detik antar sesi
+                this.logMessage('⏳', `Menunggu ${sessionDelay.toFixed(1)} detik antar sesi...`, 'yellow');
+                await new Promise(resolve => setTimeout(resolve, sessionDelay * 1000));  // Jeda antar wallet
             }
         } catch (e) {
             if (e.name === 'AbortError') {
