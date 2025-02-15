@@ -450,6 +450,9 @@ async function main() {
     // Run all instances
     try {
         await Promise.all(instances.map(instance => instance.run()));
+        /*for (let instance of instances) {
+            await instance.run(); // Tunggu hingga instansi selesai sebelum melanjutkan ke yang berikutnya
+        }*/ //for running sequentialy
     } catch (error) {
         console.log(`\n${chalk.red('❌ Fatal error:')} ${error.message}`);
     }
