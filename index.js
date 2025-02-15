@@ -393,7 +393,7 @@ class KiteAIAutomation {
                 // Display current statistics after each interaction
                 this.session.printStatistics();
 
-                const delay = Math.random() * 2 + 1;
+                const delay = Math.random() * (10 - 5) + 5;
                 this.logMessage('⏳', `Cooldown: ${delay.toFixed(1)} seconds...`, 'yellow');
                 await new Promise(resolve => setTimeout(resolve, delay * 1000));
             }
