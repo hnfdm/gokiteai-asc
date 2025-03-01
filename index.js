@@ -78,8 +78,8 @@ function createAgent(proxy) {
 }
 
 const AI_ENDPOINTS = {
-    "https://deployment-hp4y88pxnqxwlmpxllicjzzn.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_hp4y88pxnqxwlmpxllicjzzn",
+    "https://deployment-r89ftdnxa7jwwhyr97wq9lkg.stag-vxzy.zettablock.com/main": {
+        "agent_id": "deployment_r89ftdnxa7jwwhyr97wq9lkg",
         "name": "Kite AI Assistant",
         "questions": [
             "Tell me about the latest updates in Kite AI",
@@ -94,8 +94,8 @@ const AI_ENDPOINTS = {
             "How can I optimize my use of Kite AI?"
         ]
     },
-    "https://deployment-nc3y3k7zy6gekszmcsordhu7.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_nc3y3k7zy6gekszmcsordhu7",
+    "https://deployment-fsegykivcls3m9nrpe9zguy9.stag-vxzy.zettablock.com/main": {
+        "agent_id": "deployment_fsegykivcls3m9nrpe9zguy9",
         "name": "Crypto Price Assistant",
         "questions": [
             "What's the current market sentiment for Solana?",
