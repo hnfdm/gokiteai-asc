@@ -110,8 +110,8 @@ const AI_ENDPOINTS = {
             "Cardano's market outlook"
         ]
     },
-    "https://deployment-sofftlsf9z4fya3qchykaanq.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_SoFftlsf9z4fyA3QCHYkaANq",
+    "https://deployment-xkerjnnbdtazr9e15x3y7fi8.stag-vxzy.zettablock.com/main": {
+        "agent_id": "deployment_xkerjnnbdtazr9e15x3y7fi8",
         "name": "Transaction Analyzer",
         "questions": []
     }
@@ -365,7 +365,7 @@ class KiteAIAutomation {
                 this.logMessage('⏳', `Next Reset: ${this.session.nextResetTime.toISOString().replace('T', ' ').slice(0, 19)}`, 'cyan');
 
                 const transactions = await this.getRecentTransactions();
-                AI_ENDPOINTS["https://deployment-sofftlsf9z4fya3qchykaanq.stag-vxzy.zettablock.com/main"].questions = 
+                AI_ENDPOINTS["https://deployment-xkerjnnbdtazr9e15x3y7fi8.stag-vxzy.zettablock.com/main"].questions = 
                     transactions.map(tx => `Analyze this transaction in detail: ${tx}`);
 
                 const endpoints = Object.keys(AI_ENDPOINTS);
