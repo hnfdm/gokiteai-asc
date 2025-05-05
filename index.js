@@ -78,8 +78,8 @@ function createAgent(proxy) {
 }
 
 const AI_ENDPOINTS = {
-    "https://deployment-r89ftdnxa7jwwhyr97wq9lkg.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_r89ftdnxa7jwwhyr97wq9lkg",
+    "https://deployment-kazqlqgrjw8hbr8blptnpmtj.staging.gokite.ai/main": {
+        "agent_id": "deployment_kazqlqgrjw8hbr8blptnpmtjg",
         "name": "Kite AI Assistant",
         "questions": [
             "Tell me about the latest updates in Kite AI",
@@ -94,8 +94,8 @@ const AI_ENDPOINTS = {
             "How can I optimize my use of Kite AI?"
         ]
     },
-    "https://deployment-fsegykivcls3m9nrpe9zguy9.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_fsegykivcls3m9nrpe9zguy9",
+    "https://deployment-0ovyzutzgttaydzu6eqn9bxi.staging.gokite.ai/main": {
+        "agent_id": "deployment_0ovyzutzgttaydzu6eqn9bxi",
         "name": "Crypto Price Assistant",
         "questions": [
             "What's the current market sentiment for Solana?",
@@ -110,8 +110,8 @@ const AI_ENDPOINTS = {
             "Cardano's market outlook"
         ]
     },
-    "https://deployment-xkerjnnbdtazr9e15x3y7fi8.stag-vxzy.zettablock.com/main": {
-        "agent_id": "deployment_xkerjnnbdtazr9e15x3y7fi8",
+    "https://deployment-tqgv8vboiwipbkgsmzgdmwpm.staging.gokite.ai/main": {
+        "agent_id": "deployment_tqgv8vboiwipbkgsmzgdmwpm",
         "name": "Transaction Analyzer",
         "questions": []
     }
