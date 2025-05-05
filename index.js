@@ -365,7 +365,7 @@ class KiteAIAutomation {
                 this.logMessage('⏳', `Next Reset: ${this.session.nextResetTime.toISOString().replace('T', ' ').slice(0, 19)}`, 'cyan');
 
                 const transactions = await this.getRecentTransactions();
-                AI_ENDPOINTS["https://deployment-xkerjnnbdtazr9e15x3y7fi8.stag-vxzy.zettablock.com/main"].questions = 
+                AI_ENDPOINTS["https://deployment-tqgv8vboiwipbkgsmzgdmwpm.staging.gokite.ai/main"].questions = 
                     transactions.map(tx => `Analyze this transaction in detail: ${tx}`);
 
                 const endpoints = Object.keys(AI_ENDPOINTS);
