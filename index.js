@@ -1,177 +1,475 @@
-require("dotenv").config();
-const fs = require("fs");
-const axios = require("axios");
-const { ethers } = require("ethers");
-const readline = require("readline");
+import fetch from 'node-fetch';
+import chalk from 'chalk';
+import readline from 'readline';
+import fs from 'fs/promises';
+import { banner } from './banner.js';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
-const banner = `
-        █████╗ ██╗██████╗ ██████╗ ██████╗  ██████╗ ██████╗      █████╗ ███████╗ ██████╗
-        ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔═══██╗██╔══██╗    ██╔══██╗██╔════╝██╔════╝
-        ███████║██║██████╔╝██║  ██║██████╔╝██║   ██║██████╔╝    ███████║███████╗██║     
-        ██╔══██║██║██╔══██╗██║  ██║██╔══██╗██║   ██║██╔═══╝     ██╔══██║╚════██║██║     
-        ██║  ██║██║██║  ██║██████╔╝██║  ██║╚██████╔╝██║         ██║  ██║███████║╚██████╗
-        ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝         ╚═╝  ╚═╝╚══════╝ ╚═════╝
-            Mintair Auto Deploy - BOT                
-📢  Telegram Channel: https://t.me/airdropasc`;
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+const waitForKeyPress = async () => {
+    process.stdin.setRawMode(true);
+    return new Promise(resolve => {
+        process.stdin.once('data', () => {
+            process.stdin.setRawMode(false);
+            resolve();
+        });
+    });
+};
+
+
+async function loadWallets() {
+    try {
+        const data = await fs.readFile('wallets.txt', 'utf8');
+        const wallets = data.split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#'));
+        
+        if (wallets.length === 0) {
+            throw new Error('No wallets found in wallets.txt');
+        }
+        return wallets;
+    } catch (err) {
+        console.log(`${chalk.red('[ERROR]')} Error reading wallets.txt: ${err.message}`);
+        process.exit(1);
+    }
+}
+
+
+async function loadProxies() {
+    try {
+        const data = await fs.readFile('proxies.txt', 'utf8');
+        return data.split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#'))
+            .map(proxy => {
+                if (proxy.includes('://')) {
+                    const url = new URL(proxy);
+                    const protocol = url.protocol.replace(':', '');
+                    const auth = url.username ? `${url.username}:${url.password}` : '';
+                    const host = url.hostname;
+                    const port = url.port;
+                    return { protocol, host, port, auth };
+                } else {
+                    const parts = proxy.split(':');
+                    let [protocol, host, port, user, pass] = parts;
+                    protocol = protocol.replace('//', '');
+                    const auth = user && pass ? `${user}:${pass}` : '';
+                    return { protocol, host, port, auth };
+                }
+            });
+    } catch (err) {
+        console.log(`${chalk.yellow('[INFO]')} No proxy.txt found or error reading file. Using direct connection.`);
+        return [];
+    }
+}
+
+
+function createAgent(proxy) {
+    if (!proxy) return null;
+    
+    const { protocol, host, port, auth } = proxy;
+    const authString = auth ? `${auth}@` : '';
+    const proxyUrl = `${protocol}://${authString}${host}:${port}`;
+    
+    return protocol.startsWith('socks') 
+        ? new SocksProxyAgent(proxyUrl)
+        : new HttpsProxyAgent(proxyUrl);
+}
+
+const AI_ENDPOINTS = {
+    "https://deployment-kazqlqgrjw8hbr8blptnpmtj.staging.gokite.ai/main": {
+        "agent_id": "deployment_kazqlqgrjw8hbr8blptnpmtjg",
+        "name": "Kite AI Assistant",
+        "questions": [
+            "Tell me about the latest updates in Kite AI",
+            "What are the upcoming features in Kite AI?",
+            "How can Kite AI improve my development workflow?",
+            "What makes Kite AI unique in the market?",
+            "How does Kite AI handle code completion?",
+            "Can you explain Kite AI's machine learning capabilities?",
+            "What programming languages does Kite AI support best?",
+            "How does Kite AI integrate with different IDEs?",
+            "What are the advanced features of Kite AI?",
+            "How can I optimize my use of Kite AI?"
+        ]
+    },
+    "https://deployment-0ovyzutzgttaydzu6eqn9bxi.staging.gokite.ai/main": {
+        "agent_id": "deployment_0ovyzutzgttaydzu6eqn9bxi",
+        "name": "Crypto Price Assistant",
+        "questions": [
+            "What's the current market sentiment for Solana?",
+            "Analyze Bitcoin's price movement in the last hour",
+            "Compare ETH and BTC performance today",
+            "Which altcoins are showing bullish patterns?",
+            "Market analysis for top 10 cryptocurrencies",
+            "Technical analysis for Polkadot",
+            "Price movement patterns for Avalanche",
+            "Polygon's market performance analysis",
+            "Latest developments affecting BNB price",
+            "Cardano's market outlook"
+        ]
+    },
+    "https://deployment-tqgv8vboiwipbkgsmzgdmwpm.staging.gokite.ai/main": {
+        "agent_id": "deployment_tqgv8vboiwipbkgsmzgdmwpm",
+        "name": "Transaction Analyzer",
+        "questions": []
+    }
+};
+
+class WalletStatistics {
+    constructor() {
+        this.agentInteractions = {};
+        for (const endpoint in AI_ENDPOINTS) {
+            this.agentInteractions[AI_ENDPOINTS[endpoint].name] = 0;
+        }
+        this.totalPoints = 0;
+        this.totalInteractions = 0;
+        this.lastInteractionTime = null;
+        this.successfulInteractions = 0;
+        this.failedInteractions = 0;
+    }
+}
+
+class WalletSession {
+    constructor(walletAddress, sessionId) {
+        this.walletAddress = walletAddress;
+        this.sessionId = sessionId;
+        this.dailyPoints = 0;
+        this.startTime = new Date();
+        this.nextResetTime = new Date(this.startTime.getTime() + 24 * 60 * 60 * 1000);
+        this.statistics = new WalletStatistics();
+    }
+
+    updateStatistics(agentName, success = true) {
+        this.statistics.agentInteractions[agentName]++;
+        this.statistics.totalInteractions++;
+        this.statistics.lastInteractionTime = new Date();
+        if (success) {
+            this.statistics.successfulInteractions++;
+            this.statistics.totalPoints += 10; // Points per successful interaction
+        } else {
+            this.statistics.failedInteractions++;
+        }
+    }
+
+    printStatistics() {
+        console.log(`\n${chalk.blue(`[Session ${this.sessionId}]`)} ${chalk.green(`[${this.walletAddress}]`)} ${chalk.cyan('📊 Current Statistics')}`);
+        console.log(`${chalk.yellow('════════════════════════════════════════════')}`);
+        console.log(`${chalk.cyan('💰 Total Points:')} ${chalk.green(this.statistics.totalPoints)}`);
+        console.log(`${chalk.cyan('🔄 Total Interactions:')} ${chalk.green(this.statistics.totalInteractions)}`);
+        console.log(`${chalk.cyan('✅ Successful:')} ${chalk.green(this.statistics.successfulInteractions)}`);
+        console.log(`${chalk.cyan('❌ Failed:')} ${chalk.red(this.statistics.failedInteractions)}`);
+        console.log(`${chalk.cyan('⏱️ Last Interaction:')} ${chalk.yellow(this.statistics.lastInteractionTime?.toISOString() || 'Never')}`);
+        
+        console.log(`\n${chalk.cyan('🤖 Agent Interactions:')}`);
+        for (const [agentName, count] of Object.entries(this.statistics.agentInteractions)) {
+            console.log(`   ${chalk.yellow(agentName)}: ${chalk.green(count)}`);
+        }
+        console.log(chalk.yellow('════════════════════════════════════════════\n'));
+    }
+}
+
+class KiteAIAutomation {
+    constructor(walletAddress, proxyList = [], sessionId) {
+        this.session = new WalletSession(walletAddress, sessionId);
+        this.proxyList = proxyList;
+        this.currentProxyIndex = 0;
+        this.MAX_DAILY_POINTS = 200;
+        this.POINTS_PER_INTERACTION = 10;
+        this.MAX_DAILY_INTERACTIONS = this.MAX_DAILY_POINTS / this.POINTS_PER_INTERACTION;
+        this.isRunning = true;
+    }
+
+    getCurrentProxy() {
+        if (this.proxyList.length === 0) return null;
+        return this.proxyList[this.currentProxyIndex];
+    }
+
+    rotateProxy() {
+        if (this.proxyList.length === 0) return null;
+        this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyList.length;
+        const proxy = this.getCurrentProxy();
+        this.logMessage('🔄', `Rotating to proxy: ${proxy.protocol}://${proxy.host}:${proxy.port}`, 'cyan');
+        return proxy;
+    }
+
+    logMessage(emoji, message, color = 'white') {
+        const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const sessionPrefix = chalk.blue(`[Session ${this.session.sessionId}]`);
+        const walletPrefix = chalk.green(`[${this.session.walletAddress.slice(0, 6)}...]`);
+        console.log(`${chalk.yellow(`[${timestamp}]`)} ${sessionPrefix} ${walletPrefix} ${chalk[color](`${emoji} ${message}`)}`);
+    }
+
+    resetDailyPoints() {
+        const currentTime = new Date();
+        if (currentTime >= this.session.nextResetTime) {
+            this.logMessage('✨', 'Starting new 24-hour reward period', 'green');
+            this.session.dailyPoints = 0;
+            this.session.nextResetTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000);
+            return true;
+        }
+        return false;
+    }
+
+    async shouldWaitForNextReset() {
+        if (this.session.dailyPoints >= this.MAX_DAILY_POINTS) {
+            const waitSeconds = (this.session.nextResetTime - new Date()) / 1000;
+            if (waitSeconds > 0) {
+                this.logMessage('🎯', `Maximum daily points (${this.MAX_DAILY_POINTS}) reached`, 'yellow');
+                this.logMessage('⏳', `Next reset: ${this.session.nextResetTime.toISOString().replace('T', ' ').slice(0, 19)}`, 'yellow');
+                await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+                this.resetDailyPoints();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    async getRecentTransactions() {
+        this.logMessage('🔍', 'Scanning recent transactions...', 'white');
+        const url = 'https://testnet.kitescan.ai/api/v2/advanced-filters';
+        const params = new URLSearchParams({
+            transaction_types: 'coin_transfer',
+            age: '5m'
+        });
+
+        try {
+            const agent = createAgent(this.getCurrentProxy());
+            const response = await fetch(`${url}?${params}`, {
+                agent,
+                headers: {
+                    'accept': '*/*',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            const data = await response.json();
+            const hashes = data.items?.map(item => item.hash) || [];
+            this.logMessage('📊', `Found ${hashes.length} recent transactions`, 'magenta');
+            return hashes;
+        } catch (e) {
+            this.logMessage('❌', `Transaction fetch error: ${e}`, 'red');
+            this.rotateProxy();
+            return [];
+        }
+    }
+
+    async sendAiQuery(endpoint, message) {
+        const agent = createAgent(this.getCurrentProxy());
+        const headers = {
+            'Accept': 'text/event-stream',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        };
+        const data = {
+            message,
+            stream: true
+        };
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                agent,
+                headers,
+                body: JSON.stringify(data),
+                timeout: 30000 // 30 detik
+            });
+
+            const sessionPrefix = chalk.blue(`[Session ${this.session.sessionId}]`);
+            const walletPrefix = chalk.green(`[${this.session.walletAddress.slice(0, 6)}...]`);
+            process.stdout.write(`${sessionPrefix} ${walletPrefix} ${chalk.cyan('🤖 AI Response: ')}`);
+            
+            let accumulatedResponse = "";
+
+            for await (const chunk of response.body) {
+                const lines = chunk.toString().split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const jsonStr = line.slice(6);
+                            if (jsonStr === '[DONE]') break;
+
+                            const jsonData = JSON.parse(jsonStr);
+                            const content = jsonData.choices?.[0]?.delta?.content || '';
+                            if (content) {
+                                accumulatedResponse += content;
+                                process.stdout.write(chalk.magenta(content));
+                            }
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                }
+            }
+            console.log();
+            return accumulatedResponse.trim();
+        } catch (e) {
+            this.logMessage('❌', `AI query error: ${e}`, 'red');
+            this.rotateProxy();
+            return "";
+        }
+    }
+
+    async reportUsage(endpoint, message, response) {
+        this.logMessage('📝', 'Recording interaction...', 'white');
+        const url = 'https://quests-usage-dev.prod.zettablock.com/api/report_usage';
+        const data = {
+            wallet_address: this.session.walletAddress,
+            agent_id: AI_ENDPOINTS[endpoint].agent_id,
+            request_text: message,
+            response_text: response,
+            request_metadata: {}
+        };
+
+        try {
+            const agent = createAgent(this.getCurrentProxy());
+            const result = await fetch(url, {
+                method: 'POST',
+                agent,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                body: JSON.stringify(data)
+            });
+            return result.status === 200;
+        } catch (e) {
+            this.logMessage('❌', `Usage report error: ${e}`, 'red');
+            this.rotateProxy();
+            return false;
+        }
+    }
+
+    async run() {
+        this.logMessage('🚀', 'Initializing Kite AI Auto-Interaction System', 'green');
+        this.logMessage('💼', `Wallet: ${this.session.walletAddress}`, 'cyan');
+        this.logMessage('🎯', `Daily Target: ${this.MAX_DAILY_POINTS} points (${this.MAX_DAILY_INTERACTIONS} interactions)`, 'cyan');
+        this.logMessage('⏰', `Next Reset: ${this.session.nextResetTime.toISOString().replace('T', ' ').slice(0, 19)}`, 'cyan');
+        
+        if (this.proxyList.length > 0) {
+            this.logMessage('🌐', `Loaded ${this.proxyList.length} proxies`, 'cyan');
+        } else {
+            this.logMessage('🌐', 'Running in direct connection mode', 'yellow');
+        }
+
+        let interactionCount = 0;
+        try {
+            while (this.isRunning) {
+                this.resetDailyPoints();
+                await this.shouldWaitForNextReset();
+
+                interactionCount++;
+                console.log(`\n${chalk.blue(`[Session ${this.session.sessionId}]`)} ${chalk.green(`[${this.session.walletAddress}]`)} ${chalk.cyan('═'.repeat(60))}`);
+                this.logMessage('🔄', `Interaction #${interactionCount}`, 'magenta');
+                this.logMessage('📈', `Progress: ${this.session.dailyPoints + this.POINTS_PER_INTERACTION}/${this.MAX_DAILY_POINTS} points`, 'cyan');
+                this.logMessage('⏳', `Next Reset: ${this.session.nextResetTime.toISOString().replace('T', ' ').slice(0, 19)}`, 'cyan');
+
+                const transactions = await this.getRecentTransactions();
+                AI_ENDPOINTS["https://deployment-tqgv8vboiwipbkgsmzgdmwpm.staging.gokite.ai/main"].questions = 
+                    transactions.map(tx => `Analyze this transaction in detail: ${tx}`);
+
+                const endpoints = Object.keys(AI_ENDPOINTS);
+                const endpoint = endpoints[Math.floor(Math.random() * endpoints.length)];
+                const questions = AI_ENDPOINTS[endpoint].questions;
+                const question = questions[Math.floor(Math.random() * questions.length)];
+
+                this.logMessage('🤖', `AI System: ${AI_ENDPOINTS[endpoint].name}`, 'cyan');
+                this.logMessage('🔑', `Agent ID: ${AI_ENDPOINTS[endpoint].agent_id}`, 'cyan');
+                this.logMessage('❓', `Query: ${question}`, 'cyan');
+
+                const response = await this.sendAiQuery(endpoint, question);
+                let interactionSuccess = false;
+
+                if (await this.reportUsage(endpoint, question, response)) {
+                    this.logMessage('✅', 'Interaction successfully recorded', 'green');
+                    this.session.dailyPoints += this.POINTS_PER_INTERACTION;
+                    interactionSuccess = true;
+                } else {
+                    this.logMessage('⚠️', 'Interaction recording failed', 'red');
+                }
+
+                // Update statistics for this interaction
+                this.session.updateStatistics(AI_ENDPOINTS[endpoint].name, interactionSuccess);
+                
+                // Display current statistics after each interaction
+                this.session.printStatistics();
+
+                 // Cooldown antara interaksi
+                const delay = Math.random() * (10 - 5) + 5; // Cooldown antara 5-10 detik
+                this.logMessage('⏳', `Cooldown: ${delay.toFixed(1)} detik...`, 'yellow');
+                await new Promise(resolve => setTimeout(resolve, delay * 1000));  // Delay sebelum melanjutkan ke interaksi berikutnya
+                
+                // Jeda antar sesi sebelum melanjutkan ke wallet berikutnya
+                const sessionDelay = Math.random() * (10 - 5) + 5; // Jeda antara 5-10 detik antar sesi
+                this.logMessage('⏳', `Menunggu ${sessionDelay.toFixed(1)} detik antar sesi...`, 'yellow');
+                await new Promise(resolve => setTimeout(resolve, sessionDelay * 1000));  // Jeda antar wallet
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                this.logMessage('🛑', 'Process terminated by user', 'yellow');
+            } else {
+                this.logMessage('❌', `Error: ${e}`, 'red');
+            }
+        }
+    }
+
+    stop() {
+        this.isRunning = false;
+    }
+}
+
+async function main() {
+    console.clear();
+    
+    // Display initial registration message
+    console.log(`${chalk.cyan('📝 Register First:')} ${chalk.green('https://testnet.gokite.ai/?r=ExnFCPz9')}`);
+    console.log(`${chalk.yellow('💡 Join our channel if you got any problem')}\n`);
+    console.log(chalk.magenta('Press any key to continue...'));
+    
+    await waitForKeyPress();
+    console.clear();
+    
+    console.log(banner);
+    
+    // Load wallets and proxies
+    const wallets = await loadWallets();
+    const proxyList = await loadProxies();
+    
+    console.log(`${chalk.cyan('📊 Loaded:')} ${chalk.green(wallets.length)} wallets and ${chalk.green(proxyList.length)} proxies\n`);
+    
+    // Create instances for each wallet with unique session IDs
+    const instances = wallets.map((wallet, index) => 
+        new KiteAIAutomation(wallet, proxyList, index + 1)
+    );
+    
+    // Display initial statistics header
+    console.log(chalk.cyan('\n════════════════════════'));
+    console.log(chalk.cyan('🤖 Starting All Sessions'));
+    console.log(chalk.cyan('════════════════════════\n'));
+    
+    // Run all instances
+    try {
+        await Promise.all(instances.map(instance => instance.run()));
+        /*for (let instance of instances) {
+            await instance.run(); // Tunggu hingga instansi selesai sebelum melanjutkan ke yang berikutnya
+        }*/ //for running sequentialy
+    } catch (error) {
+        console.log(`\n${chalk.red('❌ Fatal error:')} ${error.message}`);
+    }
+}
+
+// Handle process termination
+process.on('SIGINT', () => {
+    console.log(`\n${chalk.yellow('🛑 Gracefully shutting down...')}`);
+    process.exit(0);
 });
 
-const ask = (question) => new Promise((resolve) => rl.question(question, resolve));
-const randomDelay = () =>
-  new Promise((resolve) =>
-    setTimeout(resolve, Math.floor(Math.random() * (30000 - 10000 + 1)) + 10000)
-  );
+// Global error handler
+process.on('unhandledRejection', (error) => {
+    console.error(`\n${chalk.red('❌ Unhandled rejection:')} ${error.message}`);
+});
 
-const rpcConfig = JSON.parse(fs.readFileSync("./rpc_config.json"));
-const privateKeys = Object.values(process.env).filter((k) => k.startsWith("0x"));
-
-if (privateKeys.length === 0) {
-  console.error("No private keys found in .env");
-  process.exit(1);
-}
-
-function generateTokenInfo() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const random = (len) =>
-    Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  const name = "Token " + random(6);
-  const symbol = random(6);
-  return { name, symbol };
-}
-
-async function postToMintair(address, txHash, networkName, type) {
-  try {
-    await axios.post(
-      "https://contracts-api.mintair.xyz/api/v1/user/transaction",
-      {
-        transactionHash: txHash,
-        metaData: { name: networkName, type },
-      },
-      { headers: { "Wallet-Address": address } }
-    );
-  } catch (error) {
-    console.error("Failed to post to Mintair:", error.message);
-  }
-}
-
-async function deployTimer(wallet, network, abi, bytecode) {
-  const factory = new ethers.ContractFactory(abi, bytecode, wallet);
-  console.log(`\nDeploying Timer Contract...`);
-  try {
-    const contract = await factory.deploy();
-    await contract.deployed();
-    const txHash = contract.deployTransaction.hash;
-    console.log("✓ Success!");
-    console.log(`  Address: ${contract.address}`);
-    console.log(`  Tx Hash: ${txHash}`);
-    await postToMintair(wallet.address, txHash, network.name, "Timer");
-    return true;
-  } catch (error) {
-    console.error("Deployment failed:", error.message);
-    return false;
-  }
-}
-
-async function deployERC20(wallet, network, abi, bytecode) {
-  const { name, symbol } = generateTokenInfo();
-  const factory = new ethers.ContractFactory(abi, bytecode, wallet);
-  console.log(`\nDeploying ${name} (${symbol})...`);
-  try {
-    const contract = await factory.deploy(name, symbol);
-    await contract.deployed();
-    const txHash = contract.deployTransaction.hash;
-    console.log("✓ Success!");
-    console.log(`  Address: ${contract.address}`);
-    console.log(`  Tx Hash: ${txHash}`);
-    await postToMintair(wallet.address, txHash, network.name, "ERC-20");
-    return true;
-  } catch (error) {
-    console.error("Deployment failed:", error.message);
-    return false;
-  }
-}
-
-async function automatedDeployment() {
-  console.log("\n== Available Networks ==");
-  rpcConfig.networks.forEach((net, i) => console.log(`${i + 1}. ${net.name} (${net.chainId})`));
-
-  const netIndex = parseInt(await ask("Select network (number): "));
-  const network = rpcConfig.networks[netIndex - 1];
-  const totalDeployments = parseInt(await ask("How many total contracts to deploy? "));
-
-  if (isNaN(totalDeployments) || totalDeployments < 1) {
-    console.error("Invalid deployment count.");
-    return;
-  }
-
-  // Load ABI and Bytecode
-  let timerAbi, timerBytecode, erc20Abi, erc20Bytecode;
-  try {
-    timerAbi = JSON.parse(fs.readFileSync("./abi/TimerABI.json"));
-    timerBytecode = JSON.parse(fs.readFileSync("./bytecode/TimerBytecode.json"));
-    if (network.name.toLowerCase().includes("0g")) {
-      erc20Abi = JSON.parse(fs.readFileSync("./abi/ABI0G.json"));
-      erc20Bytecode = JSON.parse(fs.readFileSync("./bytecode/BYTECODE0G.json"));
-    } else {
-      erc20Abi = JSON.parse(fs.readFileSync("./abi/ERC20ABI.json"));
-      erc20Bytecode = JSON.parse(fs.readFileSync("./bytecode/ERC20Bytecode.json"));
-    }
-  } catch (error) {
-    console.error("Failed to read ABI/Bytecode file:", error.message);
-    return;
-  }
-
-  let deploymentsDone = 0;
-
-  while (deploymentsDone < totalDeployments) {
-    // Randomly select a wallet
-    const walletIndex = Math.floor(Math.random() * privateKeys.length);
-    const privateKey = privateKeys[walletIndex];
-    const provider = new ethers.providers.JsonRpcProvider(network.rpc);
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const balance = await provider.getBalance(wallet.address);
-
-    console.log(`\n=== Wallet ${walletIndex + 1}: ${wallet.address} ===`);
-    console.log(`Balance: ${ethers.utils.formatEther(balance)} ${network.ticker}`);
-
-    // Randomly choose between Timer and ERC20
-    const isTimer = Math.random() < 0.5;
-    const deploySuccess = isTimer
-      ? await deployTimer(wallet, network, timerAbi, timerBytecode)
-      : await deployERC20(wallet, network, erc20Abi, erc20Bytecode);
-
-    if (deploySuccess) {
-      deploymentsDone++;
-      console.log(`Progress: ${deploymentsDone}/${totalDeployments} contracts deployed`);
-    }
-
-    if (deploymentsDone < totalDeployments) {
-      console.log("⏳ Waiting for a random interval (10-30 seconds)...");
-      await randomDelay();
-    }
-  }
-}
-
-async function mainMenu() {
-  console.log(banner); // Display the banner at the start
-  console.log("\n== AUTOMATED CONTRACT DEPLOYMENT ==");
-  await automatedDeployment();
-
-  console.log("\n============================================================");
-  console.log("                ALL TRANSACTIONS COMPLETED");
-  console.log("============================================================");
-
-  const continueTx = (await ask("\nContinue with another deployment? (y/n): ")).toLowerCase();
-  if (continueTx !== "y") {
-    console.log("\nThank you! Bot stopped.");
-    rl.close();
-    process.exit(0);
-  } else {
-    await mainMenu();
-  }
-}
-
-mainMenu();
+main().catch(error => {
+    console.error(`\n${chalk.red('❌ Fatal error:')} ${error.message}`);
+    process.exit(1);
+});
